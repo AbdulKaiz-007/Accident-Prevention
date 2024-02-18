@@ -1,0 +1,224 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define x A1
+#define y A2
+#define z A3
+int xsample=0;
+int ysample=0;
+int zsample=0;
+#define samples 10
+#define minVal -50
+#define MaxVal 50
+int i=0,k=0;
+int  gps_status=0;
+float latitude=0; 
+float logitude=0;                       
+char Speed[10]="";
+char gpsString[100]="";
+char *test="$GPRMC";
+
+void initModule(char *cmd, char *res, int t)
+{
+  while(1)
+  {
+    printf("%s\n", cmd);
+    printf("%s\n", cmd);
+    delay(100);
+    while(Serial1.available()>0)
+    {
+       if(Serial1.find(res))
+       {
+        printf("%s\n", res);
+        delay(t);
+        return;
+       }
+       else
+       {
+        printf("Error\n");
+       }
+    }
+    delay(t);
+  }
+}
+
+void setup() 
+{
+  Serial1.begin(9600);
+  Serial.begin(9600);
+  printf("Initializing....\n");
+  initModule("AT","OK",1000);
+  initModule("ATE1","OK",1000);
+  initModule("AT+CPIN?","READY",1000);  
+  initModule("AT+CMGF=1","OK",1000);     
+  initModule("AT+CNMI=2,2,0,0,0","OK",1000);  
+  printf("Initialized Successfully\n");
+  printf("Callibrating Acceleromiter\n");
+  for(int i=0;i<samples;i++)
+  {
+    xsample+=analogRead(x);
+    ysample+=analogRead(y);
+    zsample+=analogRead(z);
+  }
+  xsample/=samples;
+  ysample/=samples;
+  zsample/=samples;
+  printf("%d\n", xsample);
+  printf("%d\n", ysample);
+  printf("%d\n", zsample);
+  printf("Waiting For GPS Signal\n");
+  gps.begin(9600);
+  get_gps();
+  show_coordinate();
+  printf("GPS is Ready\n");
+  printf("System Ready..\n");
+}
+
+void loop() 
+{
+    int value1=analogRead(x);
+    int value2=analogRead(y);
+    int value3=analogRead(z);
+    int xValue=xsample-value1;
+    int yValue=ysample-value2;
+    int zValue=zsample-value3;
+    printf("x=%d\n", xValue);
+    printf("y=%d\n", yValue);
+    printf("z=%d\n", zValue);
+    if(xValue < minVal || xValue > MaxVal  || yValue < minVal || yValue > MaxVal  || zValue < minVal || zValue > MaxVal)
+    {
+      get_gps();
+      show_coordinate();
+      printf("Sending SMS\n");
+      Send();
+      printf("SMS Sent\n");
+    }       
+}
+
+void gpsEvent()
+{
+  strcpy(gpsString, "");
+  while(1)
+  {
+   while (gps.available()>0)            //Serial incoming data from GPS
+   {
+    char inChar = (char)gps.read();
+     strcat(gpsString, inChar);                    //store incoming data from GPS to temparary string str[]
+     i++;
+    // Serial.print(inChar);
+     if (i < 7)                      
+     {
+      if(gpsString[i-1] != test[i-1])         //check for right string
+      {
+        i=0;
+        strcpy(gpsString, "");
+      }
+     }
+    if(inChar=='\r')
+    {
+     if(i>60)
+     {
+       gps_status=1;
+       break;
+     }
+     else
+     {
+       i=0;
+     }
+    }
+  }
+   if(gps_status)
+    break;
+  }
+}
+
+void get_gps()
+{
+   gps_status=0;
+   int x=0;
+   while(gps_status==0)
+   {
+    gpsEvent();
+    int str_lenth=i;
+    coordinate2dec();
+    i=0;x=0;
+    str_lenth=0;
+   }
+}
+
+void show_coordinate()
+{
+    printf("Lat:%f\n", latitude);
+    printf("Log:%f\n", logitude);
+    printf("Speed(in knots)=%s\n", Speed);
+}
+
+void coordinate2dec()
+{
+  char lat_degree[3]="";
+    for(i=20;i<=21;i++)         
+      lat_degree[i-20]=gpsString[i];
+  char lat_minut[8]="";
+     for(i=22;i<=28;i++)         
+      lat_minut[i-22]=gpsString[i];
+  char log_degree[4]="";
+    for(i=32;i<=34;i++)
+      log_degree[i-32]=gpsString[i];
+  char log_minut[8]="";
+    for(i=35;i<=41;i++)
+      log_minut[i-35]=gpsString[i];
+    strcpy(Speed, "");
+    for(i=45;i<48;i++)          //extract longitude from string
+      Speed[i-45]=gpsString[i];
+     float minut= atof(lat_minut);
+     minut=minut/60;
+     float degree=atof(lat_degree);
+     latitude=degree+minut;
+     minut= atof(log_minut);
+     minut=minut/60;
+     degree=atof(log_degree);
+     logitude=degree+minut;
+}
+
+void Send()
+{ 
+   printf("AT\n");
+   delay(500);
+   serialPrint();
+   printf("AT+CMGF=1\n");
+   delay(500);
+   serialPrint();
+   printf("AT+CMGS=");
+   printf("\"");
+   printf("+9779800000000"); //mobile no. for SMS alert
+   printf("\"\n");
+   delay(500);
+   serialPrint();
+   printf("Latitude:%f\n", latitude);
+   delay(500);
+   serialPrint();
+   printf(" longitude:%f\n", logitude);
+   delay(500);
+   serialPrint();
+   printf(" Speed:%s\n", Speed);
+   delay(500);
+   serialPrint();
+   printf("http://maps.google.com/maps?&z=15&mrt=yp&t=k&q=");
+   printf("%f", latitude);
+   printf("+");              //28.612953, 77.231545   //28.612953,77.2293563
+   printf("%f", logitude);
+   printf("%c", 26);
+   delay(2000);
+   serialPrint();
+}
+
+void serialPrint()
+{
+  while(Serial1.available()>0)
+  {
+    printf("%c", Serial1.read());
+  }
+}
+
+

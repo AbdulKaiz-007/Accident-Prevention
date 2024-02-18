@@ -1,0 +1,113 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+// Define for temperature sensor
+int sensorInput;
+int tempsensePin = 4; // Assuming A4 is mapped to pin number 4
+int temp;
+int ledPin_temp = 3;
+int threshold_temperature = 15;
+
+// Define eye blink sensor
+int IRSensor = 2;
+int BUZZER = 13;
+
+// Define alcohol sensor
+const int MQ3 = 0;
+const int motor = 9;
+int value;
+
+void setup();
+void loop();
+
+int main() {
+    setup();
+    while(1) {
+        loop();
+    }
+    return 0;
+}
+
+void setup() {
+    // Setup for temperature
+    // Assuming pinMode, digitalWrite, and analogRead are implemented elsewhere
+    pinMode(tempsensePin, INPUT);
+    pinMode(sensorInput, INPUT);
+    pinMode(ledPin_temp, OUTPUT);
+
+    // Setup for eye blink sensor
+    pinMode(IRSensor, INPUT);
+    pinMode(BUZZER, OUTPUT);
+
+    // Setup for alcohol sensor
+    pinMode(MQ3, INPUT);
+    pinMode(motor, OUTPUT);
+
+    digitalWrite(BUZZER, LOW);
+    digitalWrite(motor, LOW);
+    digitalWrite(ledPin_temp, LOW);
+}
+
+void loop() {
+    // Temperature sensor detection and prevention by red light on
+    sensorInput = analogRead(tempsensePin);
+    temp = sensorInput * 0.048828125;
+
+    // Eye blink sensor detection
+    int statusSensor = digitalRead(IRSensor);
+
+    // Alcohol sensor detection
+    value = analogRead(MQ3);
+    printf("alcohol concentration is: %d\n", value);
+
+    if (temp > threshold_temperature) {
+        digitalWrite(ledPin_temp, HIGH);
+        printf("Temperature: %dC\n", temp);
+        printf("\nWarning!!!\n");
+        printf("Temperature is High\n");
+        delay(2000);
+    } else {
+        digitalWrite(ledPin_temp, LOW);
+        printf("Temp is fine\n");
+        delay(1000);
+    }
+
+    if (statusSensor == 1) {
+        digitalWrite(BUZZER, LOW);
+    } else {
+        digitalWrite(BUZZER, HIGH);
+    }
+
+    if (value > 700) {
+        digitalWrite(motor, LOW);
+    } else {
+        digitalWrite(motor, HIGH);
+    }
+
+    delay(500);
+}
+
+// Assuming delay, digitalWrite, pinMode, and analogRead are implemented elsewhere
+void delay(int milliseconds) {
+    // Implementation of delay function
+}
+
+void digitalWrite(int pin, int value) {
+    // Implementation of digitalWrite function
+}
+
+void pinMode(int pin, int mode) {
+    // Implementation of pinMode function
+}
+
+int analogRead(int pin) {
+    // Implementation of analogRead function
+    return 0; // Placeholder return value
+}
+
+int digitalRead(int pin) {
+    // Implementation of digitalRead function
+    return 0; // Placeholder return value
+}
+
+
